@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Modes</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Poppins', sans-serif;
+        }
+        body {
+            background:rgb(244, 229, 229);
+            padding: 20px;
+        }
+        .games-container {
+            display: flex;
+            justify-content: space-around;
+            gap: 20px;
+            flex-wrap: wrap;
+            max-width: 2400px;
+            margin: auto;
+        }
+        .game-card {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            text-align: center;
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+            width: 350px;
+        }
+        .game-card img {
+            width: 120px;
+            height: 120px;
+            margin-bottom: 15px;
+        }
+        .game-title {
+            font-weight: 600;
+            font-size: 20px;
+            margin-bottom: 10px;
+        }
+        .game-desc {
+            font-size: 16px;
+            color: #666;
+            margin-bottom: 20px;
+        }
+        .play-btn {
+            background: #c2185b;
+            color: white;
+            padding: 12px 40px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: 0.3s;
+            width: 100%;
+            font-size: 16px;
+            font-weight: bold;
+        }
+        .play-btn:hover {
+            background: #a91550;
+        }
+    </style>
+</head>
+<body>
+    <h2 style="text-align: left; padding-left: 20px; font-weight: bold;">Games</h2>
+    <div class="games-container">
+        <div class="game-card">
+            <img src="static/triple_step_icon.jpg" alt="Triple Step">
+            <div class="game-title">Triple Step</div>
+            <div class="game-desc">Train your clarity and adaptability by integrating unexpected words into your speech</div>
+            <form method="POST">
+                <input type="hidden" name="game_mode" value="triple_step">
+                <button type="submit" class="play-btn">PLAY</button>
+            </form>
+            
+        </div>
+        <div class="game-card">
+            <img src="static/conductor_icon.png" alt="Conductor">
+            <div class="game-title">Conductor</div>
+            <div class="game-desc">Say goodbye to monotony. Unlock your vocal variety to speak in an engaging way</div>
+            <form method="POST">
+                <input type="hidden" name="game_mode" value="conductor">
+                <button type="submit" class="play-btn">PLAY</button>
+            </form>
+        </div>
+        <div class="game-card">
+            <img src="static/rapid_fire_icon.png" alt="Rapid Fire Autocomplete">
+            <div class="game-title">Rapid Fire Autocomplete</div>
+            <div class="game-desc">Improve your impromptu speaking by training your brain’s autocomplete function</div>
+            <form method="POST">
+                <input type="hidden" name="game_mode" value="rapid_fire">
+                <button type="submit" class="play-btn">PLAY</button>
+            </form>
+        </div>
+    </div>
+    <script>
+        function startGame(mode) {
+            alert("Starting " + mode.replace('_', ' '));
+        }
+    </script>
+</body>
+</html>

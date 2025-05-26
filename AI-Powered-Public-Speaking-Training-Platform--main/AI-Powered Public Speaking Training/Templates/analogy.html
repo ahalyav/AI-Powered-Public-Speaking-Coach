@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAPID FIRE ANALOGIES</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            background:rgb(244, 229, 229);
+            color: #333;
+            margin: 0;
+            padding: 20px;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 2.5em;
+            color: #333;
+            text-shadow: 2px 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        form {
+            background: white;
+            padding: 15px;
+            border-radius: 12px;
+            display: inline-block;
+            box-shadow: 0px 5px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        label {
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+
+        input[type="range"] {
+            width: 200px;
+            accent-color:#a91550;
+        }
+
+        button {
+            background:#a91550;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        button:hover {
+            background: #a91550;
+        }
+
+        #questionDisplay {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #a91550;
+            margin-top: 20px;
+        }
+
+        #processingMessage {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: blue;
+            display: none;
+        }
+
+        #feedbackSection {
+            background: white;
+            padding: 15px;
+            margin-top: 20px;
+            border-radius: 12px;
+            box-shadow: 0px 5px 10px rgba(0, 0, 0, 0.1);
+            text-align: left;
+            display: none;
+            width: 60%;
+            margin: auto;
+        }
+    </style>
+
+    <script>
+        let mediaRecorder;
+        let questions = [];
+        let currentIndex = 0;
+        let audioChunks = [];
+
+        function startRecording() {
+            navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+                mediaRecorder = new MediaRecorder(stream);
+                mediaRecorder.ondataavailable = event => {
+                    audioChunks.push(event.data);
+                };
+
+                mediaRecorder.onstop = () => {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                    const audioUrl = URL.createObjectURL(audioBlob);
+                    document.getElementById('audioPlayback').src = audioUrl;
+
+                    const downloadLink = document.getElementById('downloadLink');
+                    downloadLink.href = audioUrl;
+                    downloadLink.download = 'recording.wav';
+                    downloadLink.style.display = 'block';
+                    downloadLink.innerText = 'Download Recording';
+
+                    document.getElementById("processingMessage").style.display = "block";
+                    document.getElementById("feedbackSection").style.display = "none";
+
+                    uploadAudio(audioBlob);
+                };
+
+                mediaRecorder.start();
+                audioChunks = [];
+
+                setTimeout(() => {
+                    mediaRecorder.stop();
+                }, parseInt(document.getElementById('duration').value) * 1000);
+
+                currentIndex = 0;
+                updateQuestion();
+
+                let questionInterval = setInterval(() => {
+                    if (currentIndex < questions.length - 1) {
+                        currentIndex++;
+                        updateQuestion();
+                    } else {
+                        clearInterval(questionInterval);
+                    }
+                }, 5000);
+            });
+        }
+
+        function updateQuestion() {
+            if (questions.length > 0) {
+                document.getElementById("questionDisplay").innerText = `Question: ${questions[currentIndex]}`;
+            }
+        }
+
+        function uploadAudio(audioBlob) {
+            let formData = new FormData();
+            formData.append("audio", audioBlob, "recording.wav");
+
+            fetch("/rapid_fire", {
+                method: "POST",
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log("Server Response:", data);
+                document.getElementById("processingMessage").style.display = "none";
+                document.getElementById("feedbackSection").style.display = "block";
+                document.getElementById("feedback").innerText = data.feedback;
+            })
+            .catch(error => console.error("Upload failed:", error));
+        }
+
+        function submitDuration() {
+            document.getElementById("durationForm").submit();
+        }
+    </script>
+</head>
+<body>
+    <h1>RAPID FIRE ANALOGIES</h1>
+
+    <form id="durationForm" method="POST">
+        <label for="duration">Select Duration (10-60 seconds): </label>
+        <input type="range" id="duration" name="duration" min="10" max="60" value="{{ duration if duration else 10 }}" step="1"
+               oninput="document.getElementById('durationValue').innerText = this.value;">
+        <span id="durationValue">{{ duration if duration else 10 }}</span> seconds
+        <button type="button" onclick="submitDuration()">Set Duration</button>
+    </form>
+
+    {% if questions %}
+        <script>
+            questions = JSON.parse('{{ questions | tojson }}');
+        </script>
+    {% endif %}
+
+    <h3 id="questionDisplay">Click 'Start Recording' to see the first question.</h3>
+
+    <button onclick="startRecording()">Start Recording</button>
+
+    <audio id="audioPlayback" controls></audio>
+    <a id="downloadLink" style="display: none;">Download Recording</a>
+
+    <h3 id="processingMessage">Processing your audio... Please wait.</h3>
+
+    <div id="feedbackSection">
+        <h2>AI Feedback</h2>
+        <p id="feedback"></p>
+    </div>
+</body>
+</html>

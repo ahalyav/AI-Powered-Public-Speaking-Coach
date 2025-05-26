@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Modes</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: rgb(244, 229, 229);
+            color: #333;
+            margin: 0;
+            padding: 20px;
+            text-align: center;
+        }
+
+        /* Header */
+        h1 {
+            font-size: 2.5em;
+            color: #333;
+            text-shadow: 2px 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Form and Controls */
+        form {
+            background: white;
+            padding: 15px;
+            border-radius: 12px;
+            display: inline-block;
+            box-shadow: 0px 5px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        label {
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+
+        input[type="range"] {
+            width: 200px;
+            accent-color: #a91550;
+        }
+
+        button {
+            background: #a91550;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        button:hover {
+            background: #a91550;
+        }
+
+        /* Audio Section */
+        audio {
+            margin-top: 10px;
+            width: 300px;
+            border-radius: 8px;
+        }
+
+        /* Download Link */
+        a#downloadLink {
+            display: block;
+            margin-top: 10px;
+            color: #a91550;
+            font-weight: bold;
+            text-decoration: none;
+            transition: 0.3s;
+        }
+
+        a#downloadLink:hover {
+            text-decoration: underline;
+        }
+
+        /* AI Feedback Section */
+        #feedbackSection {
+            background: white;
+            padding: 15px;
+            margin-top: 20px;
+            border-radius: 12px;
+            box-shadow: 0px 5px 10px rgba(0, 0, 0, 0.1);
+            text-align: left;
+            display: inline-block;
+            width: 60%;
+        }
+
+        #accuracyScore {
+            color:rgb(167, 40, 40);
+            font-size: 1.5em;
+        }
+
+        #aiFeedback {
+            font-size: 1.1em;
+            line-height: 1.6;
+        }
+
+        /* Loading Message */
+        #processingMessage {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #a91550;
+        }
+
+        /* Mobile Responsiveness */
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+
+            form, #feedbackSection {
+                width: 90%;
+            }
+
+            audio {
+                width: 100%;
+            }
+        }
+    </style>
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conductor Speech Evaluation</title>
+    <script>
+        let mediaRecorder;
+        let audioChunks = [];
+        let expectedScores = [];
+        let currentIndex = 0;
+
+        function startRecording() {
+            navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+                mediaRecorder = new MediaRecorder(stream);
+                mediaRecorder.ondataavailable = event => {
+                    audioChunks.push(event.data);
+                };
+
+                mediaRecorder.onstop = () => {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                    const audioUrl = URL.createObjectURL(audioBlob);
+                    document.getElementById('audioPlayback').src = audioUrl;
+
+                    const downloadLink = document.getElementById('downloadLink');
+                    downloadLink.href = audioUrl;
+                    downloadLink.download = 'recording.wav';
+                    downloadLink.style.display = 'block';
+                    downloadLink.innerText = 'Download Recording';
+
+                    // Show loading message
+                    document.getElementById("processingMessage").style.display = "block";
+                    document.getElementById("feedbackSection").style.display = "none";
+
+                    // Send audio file to Flask backend
+                    uploadAudio(audioBlob);
+                };
+
+                mediaRecorder.start();
+                audioChunks = [];
+
+                setTimeout(() => {
+                    mediaRecorder.stop();
+                }, parseInt(document.getElementById('duration').value) * 1000);
+
+                // Start updating expected scores every 10 seconds
+                currentIndex = 0;
+                updateExpectedScore();
+                let scoreInterval = setInterval(() => {
+                    if (currentIndex < expectedScores.length - 1) {
+                        currentIndex++;
+                        updateExpectedScore();
+                    } else {
+                        clearInterval(scoreInterval);
+                    }
+                }, 10000);
+            });
+        }
+
+        function uploadAudio(audioBlob) {
+            let formData = new FormData();
+            formData.append("audio", audioBlob, "recording.wav");
+
+            fetch("/conductor", {
+                method: "POST",
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log("Server Response:", data);
+                if (data.message) {
+                    document.getElementById("processingMessage").style.display = "none";
+                    document.getElementById("feedbackSection").style.display = "block";
+
+                    // Display AI feedback and accuracy score
+                    document.getElementById("accuracyScore").innerText = `Final Accuracy Score: ${data.accuracy_score}%`;
+                    document.getElementById("aiFeedback").innerText = data.feedback;
+                } else {
+                    alert("Error: " + data.error);
+                }
+            })
+            .catch(error => console.error("Upload failed:", error));
+        }
+
+        function updateExpectedScore() {
+            document.getElementById("expectedScore").innerText = `Expected Score: ${expectedScores[currentIndex]}`;
+        }
+
+        function submitDuration() {
+            document.getElementById("durationForm").submit();
+        }
+    </script>
+</head>
+<body>
+    <h1>Conductor Speech Evaluation</h1>
+    
+    <h2>Your Topic: {{ topic }}</h2>
+
+    <form id="durationForm" method="POST">
+        <label for="duration">Select Duration (60-120 seconds): </label>
+        <input type="range" id="duration" name="duration" min="60" max="120" value="{{ duration if duration else 60 }}" step="1" oninput="document.getElementById('durationValue').innerText = this.value;">
+        <span id="durationValue">{{ duration if duration else 60 }}</span> seconds
+        <button type="button" onclick="submitDuration()">Set Duration</button>
+    </form>
+
+    {% if expected_scores %}
+        <script>
+            expectedScores = JSON.parse('{{ expected_scores | tojson }}');
+        </script>
+    {% endif %}
+
+    <h3 id="expectedScore">Expected Score: --</h3>
+
+    <button onclick="startRecording()">Start Recording</button>
+
+    <audio id="audioPlayback" controls></audio>
+    <a id="downloadLink" style="display: none;">Download Recording</a>
+
+    <h3 id="processingMessage" style="display: none; color: blue;">Processing your audio... Please wait.</h3>
+
+    <div id="feedbackSection" style="display: none;">
+        <h2>AI Feedback</h2>
+        <h3 id="accuracyScore"></h3>
+        <p id="aiFeedback" style="font-weight: bold;"></p>
+    </div>
+</body>
+</html>

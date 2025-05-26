@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TRIPLE STEP</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: rgb(244, 229, 229);
+            color: #333;
+            margin: 0;
+            padding: 20px;
+            text-align: center;
+        }
+        h1 {
+            font-size: 2.5em;
+            color: #333;
+            text-shadow: 2px 2px 5px rgba(0, 0, 0, 0.1);
+        }
+        button {
+            background: #a91550;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+        button:hover {
+            background: #a91550;
+        }
+        audio {
+            margin-top: 10px;
+            width: 300px;
+            border-radius: 8px;
+        }
+        a#downloadLink {
+            display: block;
+            margin-top: 10px;
+            color: #a91550;
+            font-weight: bold;
+            text-decoration: none;
+            transition: 0.3s;
+        }
+        a#downloadLink:hover {
+            text-decoration: underline;
+        }
+        #feedbackSection {
+            background: white;
+            padding: 15px;
+            margin-top: 20px;
+            border-radius: 12px;
+            box-shadow: 0px 5px 10px rgba(0, 0, 0, 0.1);
+            text-align: left;
+            display: inline-block;
+            width: 60%;
+        }
+        #processingMessage {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #a91550;
+        }
+    </style>
+    <script>
+        let mediaRecorder;
+        let audioChunks = [];
+        let distractorWords = [];
+        let currentIndex = 0;
+        let recordingTimeout;
+        let distractorInterval;
+
+        function startRecording() {
+            navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+
+                mediaRecorder.ondataavailable = event => {
+                    audioChunks.push(event.data);
+                };
+
+                mediaRecorder.onstop = () => {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                    const audioUrl = URL.createObjectURL(audioBlob);
+                    document.getElementById('audioPlayback').src = audioUrl;
+                    document.getElementById('downloadLink').href = audioUrl;
+                    document.getElementById('downloadLink').download = 'recording.wav';
+                    document.getElementById('downloadLink').style.display = 'block';
+
+                    document.getElementById("processingMessage").style.display = "block";
+                    document.getElementById("feedbackSection").style.display = "none";
+                    uploadAudio(audioBlob);
+                };
+
+                mediaRecorder.start();
+                currentIndex = 0;
+                updateDistractorWord();
+
+                distractorInterval = setInterval(() => {
+                    if (currentIndex < distractorWords.length - 1) {
+                        currentIndex++;
+                        updateDistractorWord();
+                    } else {
+                        clearInterval(distractorInterval);
+                    }
+                }, 10000);
+
+                // **Stop recording automatically after 1 minute**
+                recordingTimeout = setTimeout(() => {
+                    mediaRecorder.stop();
+                    clearInterval(distractorInterval);
+                }, 60000);
+            });
+        }
+
+        function uploadAudio(audioBlob) {
+            let formData = new FormData();
+            formData.append("audio", audioBlob, "recording.wav");
+
+            fetch("/triple_step", { method: "POST", body: formData })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById("processingMessage").style.display = "none";
+                document.getElementById("feedbackSection").style.display = "block";
+                document.getElementById("feedback").innerText = data.feedback;
+            })
+            .catch(error => console.error("Upload failed:", error));
+        }
+
+        function updateDistractorWord() {
+            document.getElementById("distractorWord").innerText = `Distractor Word: ${distractorWords[currentIndex]}`;
+        }
+    </script>
+</head>
+<body>
+    <h1>TRIPLE STEP</h1>
+    <h2>Your Topic: {{ topic }}</h2>
+    {% if distractorWords %}
+        <script>
+            distractorWords = JSON.parse('{{ distractorWords | tojson }}');
+        </script>
+    {% endif %}
+    <h3 id="distractorWord">Distractor Word: --</h3>
+    <button onclick="startRecording()">Start Recording</button>
+    <audio id="audioPlayback" controls></audio>
+    <a id="downloadLink" style="display: none;">Download Recording</a>
+    <h3 id="processingMessage" style="display: none;">Processing your audio... Please wait.</h3>
+    <div id="feedbackSection">
+        <h2>AI Feedback</h2>
+        <p id="feedback"></p>
+    </div>
+</body>
+</html>
